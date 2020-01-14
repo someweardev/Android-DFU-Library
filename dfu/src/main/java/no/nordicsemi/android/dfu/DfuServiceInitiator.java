@@ -736,10 +736,19 @@ public final class DfuServiceInitiator {
 	 * @param service the class derived from the BaseDfuService
 	 */
 	public DfuServiceController start(@NonNull final Context context, @NonNull final Class<? extends DfuBaseService> service) {
+		final Intent intent = new Intent(context, service);
+		return start(context, intent);
+	}
+
+	/**
+	 * Starts the DFU service.
+	 *
+	 * @param context the application context
+	 * @param intent the DfuBaseService intent
+	 */
+	public DfuServiceController start(@NonNull final Context context, @NonNull Intent intent) {
 		if (fileType == -1)
 			throw new UnsupportedOperationException("You must specify the firmware file before starting the service");
-
-		final Intent intent = new Intent(context, service);
 
 		intent.putExtra(DfuBaseService.EXTRA_DEVICE_ADDRESS, deviceAddress);
 		intent.putExtra(DfuBaseService.EXTRA_DEVICE_NAME, deviceName);
