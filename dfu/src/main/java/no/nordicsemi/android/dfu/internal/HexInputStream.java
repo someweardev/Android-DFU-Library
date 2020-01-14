@@ -22,7 +22,7 @@
 
 package no.nordicsemi.android.dfu.internal;
 
-import androidx.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -325,15 +325,6 @@ public class HexInputStream extends FilterInputStream {
 		localPos = 0;
 
 		return lineSize;
-	}
-
-	@Override
-	public synchronized void mark(final int readlimit) {
-		try {
-			super.mark(in.available());
-		} catch (final IOException e) {
-			// ignore
-		}
 	}
 
 	@Override

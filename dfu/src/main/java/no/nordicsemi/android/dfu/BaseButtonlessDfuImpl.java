@@ -26,8 +26,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.Intent;
-
-import androidx.annotation.NonNull;
+import android.support.annotation.NonNull;
 
 /**
  * A base implementation of a buttonless service. The purpose of a buttonless service is to
