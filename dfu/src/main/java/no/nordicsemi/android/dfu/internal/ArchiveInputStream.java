@@ -22,15 +22,18 @@
 
 package no.nordicsemi.android.dfu.internal;
 
+import android.os.Build;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.google.gson.Gson;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -271,6 +274,37 @@ public class ArchiveInputStream extends InputStream {
 	}
 
 	/**
+	 * Validates the path (not the content) of the zip file to prevent path traversal issues.
+	 *
+	 * <p> When unzipping an archive, always validate the compressed files' paths and reject any path
+	 * that has a path traversal (such as ../..). Simply looking for .. characters in the compressed
+	 * file's path may not be enough to prevent path traversal issues. The code validates the name of
+	 * the entry before extracting the entry. If the name is invalid, the entire extraction is aborted.
+	 * <p>
+	 *
+	 * @param filename The path to the file.
+	 * @param intendedDir The intended directory where the zip should be.
+	 * @return The validated path to the file.
+	 * @throws java.io.IOException Thrown in case of path traversal issues.
+	 */
+	@SuppressWarnings("SameParameterValue")
+	private String validateFilename(@NonNull final String filename,
+									@NonNull final String intendedDir)
+			throws java.io.IOException {
+		File f = new File(filename);
+		String canonicalPath = f.getCanonicalPath();
+
+		File iD = new File(intendedDir);
+		String canonicalID = iD.getCanonicalPath();
+
+		if (canonicalPath.startsWith(canonicalID)) {
+			return canonicalPath.substring(1); // remove leading "/"
+		} else {
+			throw new IllegalStateException("File is outside extraction target directory.");
+		}
+	}
+
+	/**
 	 * Reads all files into byte arrays.
 	 * Here we don't know whether the ZIP file is valid.
 	 * <p>
@@ -289,7 +323,7 @@ public class ArchiveInputStream extends InputStream {
 
 		ZipEntry ze;
 		while ((ze = zipInputStream.getNextEntry()) != null) {
-			final String filename = ze.getName();
+			final String filename = validateFilename(ze.getName(), ".");
 
 			if (ze.isDirectory()) {
 				Log.w(TAG, "A directory found in the ZIP: " + filename + "!");
@@ -314,7 +348,12 @@ public class ArchiveInputStream extends InputStream {
 
 			// Save the file content either as a manifest data or by adding it to entries
 			if (MANIFEST.equals(filename))
-				manifestData = new String(source, "UTF-8");
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+					manifestData = new String(source, StandardCharsets.UTF_8);
+				} else {
+					//noinspection CharsetObjectCanBeUsed
+					manifestData = new String(source, "UTF-8");
+				}
 			else
 				entries.put(filename, source);
 		}
@@ -382,7 +421,7 @@ public class ArchiveInputStream extends InputStream {
 
 	private int rawRead(@NonNull final byte[] buffer, final int offset, final int length) {
 		final int maxSize = currentSource.length - bytesReadFromCurrentSource;
-		final int size = length <= maxSize ? length : maxSize;
+		final int size = Math.min(length, maxSize);
 		System.arraycopy(currentSource, bytesReadFromCurrentSource, buffer, offset, size);
 		bytesReadFromCurrentSource += size;
 		bytesRead += size;

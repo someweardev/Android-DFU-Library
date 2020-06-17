@@ -266,6 +266,11 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 	 */
 	public static final String EXTRA_UNSAFE_EXPERIMENTAL_BUTTONLESS_DFU = "no.nordicsemi.android.dfu.extra.EXTRA_UNSAFE_EXPERIMENTAL_BUTTONLESS_DFU";
 	/**
+	 * The duration of a delay that will be added before sending each data packet in Secure DFU,
+	 * in milliseconds. This defaults to 0 for backwards compatibility reason.
+	 */
+	public static final String EXTRA_DATA_OBJECT_DELAY = "no.nordicsemi.android.dfu.extra.EXTRA_DATA_OBJECT_DELAY";
+	/**
 	 * This property must contain a boolean value.
 	 * <p>
 	 * If true the Packet Receipt Notification procedure will be enabled.
@@ -808,7 +813,7 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 		public void onReceive(final Context context, final Intent intent) {
 			// Obtain the device and check if this is the one that we are connected to
 			final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-			if (!device.getAddress().equals(mDeviceAddress))
+			if (device == null || !device.getAddress().equals(mDeviceAddress))
 				return;
 
 			// Read bond state
@@ -826,7 +831,7 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 		public void onReceive(final Context context, final Intent intent) {
 			// Obtain the device and check it this is the one that we are connected to
 			final BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-			if (!device.getAddress().equals(mDeviceAddress))
+			if (device == null || !device.getAddress().equals(mDeviceAddress))
 				return;
 
 			final String action = intent.getAction();
@@ -1028,7 +1033,9 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 		// By default, the service will be killed and recreated immediately after that,
 		// but we don't want it. User removed the task, so let's cancel DFU.
 		final NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-		manager.cancel(NOTIFICATION_ID);
+		if (manager != null) {
+			manager.cancel(NOTIFICATION_ID);
+		}
 		stopSelf();
 	}
 
@@ -1081,6 +1088,11 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 		String mimeType = intent.getStringExtra(EXTRA_FILE_MIME_TYPE);
 		mimeType = mimeType != null ? mimeType : (fileType == TYPE_AUTO ? MIME_TYPE_ZIP : MIME_TYPE_OCTET_STREAM);
 
+		// Some validation
+		if (deviceAddress == null || (filePath == null && fileUri == null && fileResId == 0)) {
+			loge("Device Address of firmware location are empty. Hint: use DfuServiceInitiator to start DFU");
+			return;
+		}
 		// Check file type and mime-type
 		if ((fileType & ~(TYPE_SOFT_DEVICE | TYPE_BOOTLOADER | TYPE_APPLICATION)) > 0 || !(MIME_TYPE_ZIP.equals(mimeType) || MIME_TYPE_OCTET_STREAM.equals(mimeType))) {
 			logw("File type or file mime-type not supported");
@@ -1103,6 +1115,11 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 					"Consider enabling foreground service using DfuServiceInitiator#setForeground(boolean)");
 		}
 		UuidHelper.assignCustomUuids(intent);
+
+		if (foregroundService) {
+			logi("Starting DFU service in foreground");
+			startForeground();
+		}
 
 		mDeviceAddress = deviceAddress;
 		mDeviceName = deviceName;
@@ -1131,9 +1148,6 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 				mbrSize = 0;
 		}
 
-		if (foregroundService) {
-			startForeground();
-		}
 		sendLogBroadcast(LOG_LEVEL_VERBOSE, "DFU service started");
 
 		/*
@@ -1590,7 +1604,7 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 	 *
 	 * @param gatt the GATT device to be closed.
 	 */
-	protected void close(final BluetoothGatt gatt) {
+	protected void close(@NonNull final BluetoothGatt gatt) {
 		logi("Cleaning up...");
 		sendLogBroadcast(LOG_LEVEL_DEBUG, "gatt.close()");
 		gatt.close();
@@ -1604,7 +1618,7 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 	 * @param gatt  the GATT device to be refreshed.
 	 * @param force <code>true</code> to force the refresh.
 	 */
-	protected void refreshDeviceCache(final BluetoothGatt gatt, final boolean force) {
+	protected void refreshDeviceCache(@NonNull final BluetoothGatt gatt, final boolean force) {
 		/*
 		 * If the device is bonded this is up to the Service Changed characteristic to notify Android that the services has changed.
 		 * There is no need for this trick in that case.
@@ -1621,7 +1635,7 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 				final Method refresh = gatt.getClass().getMethod("refresh");
 				final boolean success = (Boolean) refresh.invoke(gatt);
 				logi("Refreshing result: " + success);
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				loge("An exception occurred while refreshing device", e);
 				sendLogBroadcast(LOG_LEVEL_WARNING, "Refreshing failed");
 			}
@@ -1714,7 +1728,9 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 		updateProgressNotification(builder, progress);
 
 		final NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-		manager.notify(NOTIFICATION_ID, builder.build());
+		if (manager != null) {
+			manager.notify(NOTIFICATION_ID, builder.build());
+		}
 	}
 
 	/**
@@ -1771,7 +1787,9 @@ public abstract class DfuBaseService extends IntentService implements DfuProgres
 		updateErrorNotification(builder);
 
 		final NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-		manager.notify(NOTIFICATION_ID, builder.build());
+		if (manager != null) {
+			manager.notify(NOTIFICATION_ID, builder.build());
+		}
 	}
 
 	/**

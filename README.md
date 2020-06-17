@@ -1,6 +1,6 @@
 # DFU Library
 
-[ ![Download](https://api.bintray.com/packages/nordic/android/no.nordicsemi.android%3Adfu/images/download.svg?version=1.9.1) ](https://bintray.com/nordic/android/no.nordicsemi.android%3Adfu/1.9.1/link)
+[ ![Download](https://api.bintray.com/packages/nordic/android/no.nordicsemi.android%3Adfu/images/download.svg) ](https://bintray.com/nordic/android/no.nordicsemi.android%3Adfu/_latestVersion)
 
 ### Usage
 
@@ -8,7 +8,7 @@ The DFU library may be found on jcenter and Maven Central repository. Add it to 
 adding the following dependency:
 
 ```Groovy
-implementation 'no.nordicsemi.android:dfu:1.9.1'
+implementation 'no.nordicsemi.android:dfu:1.10.3'
 ```
 
 For projects not migrated to Android Jetpack, use:
